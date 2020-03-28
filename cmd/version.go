@@ -9,7 +9,7 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print version",
+	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Version:", version.VersionNumber)
 		fmt.Println("Commit hash:", version.VersionCommitHash)

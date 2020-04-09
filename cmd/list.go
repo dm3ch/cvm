@@ -1,10 +1,12 @@
 package cmd
 
 import (
-	"os"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
 
 	"github.com/spf13/cobra"
 )
@@ -20,28 +22,69 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available",
 	Run: func(cmd *cobra.Command, args []string) {
-		r, err := http.Get(releasesURL)
+		var versions []string
 
-
+		isRemote, err := cmd.Flags().GetBool("remote")
 		if err != nil {
-			fmt.Printf(err.Error())
+			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		defer r.Body.Close()
-		
-		var versions []kubeVersion
-		err = json.NewDecoder(r.Body).Decode(&versions)
+
+		if isRemote {
+			versions, err = listRemote()
+		} else {
+			versions, err = listLocal()
+		}
+
 		if err != nil {
-			fmt.Printf(err.Error())
+			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		
+
 		for _, v := range versions {
-			fmt.Println(v.Name)
+			fmt.Println(v)
 		}
 	},
 }
 
 func init() {
 	kubectlCmd.AddCommand(listCmd)
+	listCmd.Flags().BoolP("remote", "r", false, "List remote versions")
+}
+
+func listRemote() ([]string, error) {
+	r, err := http.Get(releasesURL)
+	defer r.Body.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var kubeVersions []kubeVersion
+	err = json.NewDecoder(r.Body).Decode(&kubeVersions)
+	if err != nil {
+		return nil, err
+	}
+
+	var versions []string
+	for _, v := range kubeVersions {
+		versions = append(versions, v.Name)
+	}
+	return versions, nil
+}
+
+func listLocal() ([]string, error) {
+	storagePath, err := getStorageDirAbsolutePath()
+	if err != nil {
+		return nil, err
+	}
+
+	files, err := filepath.Glob(filepath.Join(storagePath, "kubectl", "kubectl_*"))
+
+	var versions []string
+	r := regexp.MustCompile(`kubectl_(v\d+.\d+.\d+)$`)
+	for _, f := range files {
+		versions = append(versions, r.FindStringSubmatch(f)[1])
+	}
+	return versions, nil
 }

@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/spf13/cobra"
@@ -37,7 +37,7 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		file, err := os.Create(path.Join(storagePath, "kubectl", "kubectl_"+version))
+		file, err := os.Create(filepath.Join(storagePath, "kubectl", "kubectl_"+version))
 		defer file.Close()
 		if err != nil {
 			fmt.Println(err)

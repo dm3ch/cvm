@@ -84,7 +84,10 @@ func listLocal() ([]string, error) {
 	var versions []string
 	r := regexp.MustCompile(`kubectl_(v\d+.\d+.\d+)$`)
 	for _, f := range files {
-		versions = append(versions, r.FindStringSubmatch(f)[1])
+		submatches := r.FindStringSubmatch(f)
+		if len(submatches) == 2 {
+			versions = append(versions, submatches[1])
+		}
 	}
 	return versions, nil
 }

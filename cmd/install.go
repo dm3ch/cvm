@@ -12,49 +12,67 @@ import (
 )
 
 var installCmd = &cobra.Command{
-	Use:   "install <version>",
+	Use:   "install <version 1> ... <version n>",
 	Short: "Install kubectl version",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		version := args[0]
-		url := fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/%s/bin/%s/%s/kubectl", version, runtime.GOOS, runtime.GOARCH)
-		fmt.Println("Downloading: ", url)
+		exitCode := 0
 
-		r, err := http.Get(url)
-		defer r.Body.Close()
-		if err != nil {
-			fmt.Println(err)
-		}
+		for _, v := range args {
+			fmt.Printf("Downloading %s kubectl verstion.\n", v)
 
-		if r.StatusCode != http.StatusOK {
-			fmt.Printf("Server returned error: %s\n", r.Status)
-		}
+			err := downloadKubectlVersion(v)
+			if err == nil {
+				fmt.Printf("Successfully installed %s kubectl version.\n", v)
+			} else {
+				fmt.Printf("Failed to install %s kubectl version.\n", v)
+				exitCode = 1
+			}
 
-		storagePath, err := getStorageDirAbsolutePath()
-		if err != nil {
-			fmt.Println("Can't get storage directory absolute path:")
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		file, err := os.Create(filepath.Join(storagePath, "kubectl", "kubectl_"+version))
-		defer file.Close()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		_, err = io.Copy(file, r.Body)
-		fmt.Printf("kubectl %s successfully installed\n", version)
-
-		err = file.Chmod(0755)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			if exitCode != 0 {
+				os.Exit(exitCode)
+			}
 		}
 	},
 }
 
 func init() {
 	kubectlCmd.AddCommand(installCmd)
+}
+
+func downloadKubectlVersion(version string) error {
+	url := fmt.Sprintf("https://storage.googleapis.com/kubernetes-release/release/%s/bin/%s/%s/kubectl", version, runtime.GOOS, runtime.GOARCH)
+
+	r, err := http.Get(url)
+	defer r.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	if r.StatusCode != http.StatusOK {
+		return fmt.Errorf("Server returned error: %s\n", r.Status)
+	}
+
+	storagePath, err := getStorageDirAbsolutePath()
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(filepath.Join(storagePath, "kubectl", "kubectl_"+version))
+	defer file.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, r.Body)
+	if err != nil {
+		return err
+	}
+
+	err = file.Chmod(0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

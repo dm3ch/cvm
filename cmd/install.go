@@ -19,19 +19,21 @@ var installCmd = &cobra.Command{
 		exitCode := 0
 
 		for _, v := range args {
-			fmt.Printf("Downloading %s kubectl verstion.\n", v)
+			fmt.Printf("Downloading %s kubectl version.\n", v)
 
 			err := downloadKubectlVersion(v)
 			if err == nil {
 				fmt.Printf("Successfully installed %s kubectl version.\n", v)
 			} else {
 				fmt.Printf("Failed to install %s kubectl version.\n", v)
+				fmt.Println("Error: ", err)
 				exitCode = 1
 			}
+			fmt.Println()
+		}
 
-			if exitCode != 0 {
-				os.Exit(exitCode)
-			}
+		if exitCode != 0 {
+			os.Exit(exitCode)
 		}
 	},
 }

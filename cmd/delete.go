@@ -9,29 +9,70 @@ import (
 )
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete <version 1>...<version n>",
+	Use:   "delete <version 1> ... <version n>",
 	Short: "Deletes kubectl version",
-	Args:  cobra.ExactArgs(1),
+	Args: func(cmd *cobra.Command, args []string) error {
+		isAll, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return err
+		}
+
+		if !isAll && len(args) < 1 {
+			return fmt.Errorf("List of versions or --all option should be supplied")
+		}
+
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		version := args[0]
+		var versions []string
+		var err error
 
-		storagePath, err := getStorageDirAbsolutePath()
-		if err != nil {
-			fmt.Println("Can't get storage directory absolute path:")
-			fmt.Println(err)
-			os.Exit(1)
+		exitCode := 0
+		isAll, _ := cmd.Flags().GetBool("all")
+
+		if isAll {
+			versions, err = listLocal()
+			if err != nil {
+				fmt.Println("Error: ", err)
+				os.Exit(1)
+			}
+		} else {
+			versions = args
 		}
 
-		err = os.Remove(filepath.Join(storagePath, "kubectl", "kubectl_"+version))
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		for _, v := range versions {
+			err := deleteKubectlVersion(v)
+			if err == nil {
+				fmt.Printf("Successfully removed %s kubectl version.\n", v)
+			} else {
+				fmt.Printf("Failed to remove %s kubectl version.\n", v)
+				fmt.Println("Error: ", err)
+				exitCode = 1
+			}
+			fmt.Println()
 		}
 
-		fmt.Println("Kubectl versions removed")
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
 	},
 }
 
 func init() {
 	kubectlCmd.AddCommand(deleteCmd)
+	deleteCmd.Flags().BoolP("all", "a", false, "Remove all local versions")
+}
+
+func deleteKubectlVersion(version string) error {
+	storagePath, err := getStorageDirAbsolutePath()
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(filepath.Join(storagePath, "kubectl", "kubectl_"+version))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
